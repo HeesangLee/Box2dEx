@@ -50,6 +50,8 @@ class TemplateScreen implements Screen, GameTimer.EventListener {
     @Override
     public void show() {
         renderables = new Array<>();
+        gestureDetectables = new Array<>();
+        gestureDetectablesTop = new Array<>();
         setGameTimer();
         initGameObjects();
         setInputProcessor();

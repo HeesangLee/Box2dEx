@@ -32,8 +32,7 @@ public class Box2dExGame extends Game {
         batch = new SpriteBatch();
 
         gameConfiguration = GameConfiguration.getInstance();
-        gameConfiguration
-                .setHperW((float) Gdx.graphics.getHeight() / (float) Gdx.graphics.getWidth());
+        gameConfiguration.setViewportSize(1080f,1920f,true);
         logViewPortSize();
 
         if (REMOVE_PREFERENCES) {

@@ -7,14 +7,15 @@ import com.badlogic.gdx.utils.TimeUtils;
 import java.util.Date;
 
 public class GameConfiguration {
+    private final String tag = "GameConfiguration";
     private static final GameConfiguration instance = new GameConfiguration();
 
     Preferences preferences = Gdx.app.getPreferences("hs.app.skinvibrator.preference");
     private final String prefKey_Date = "date";
 
 
-    private final float viewportWidth = 1080f;
-    private final float viewportHeight = 1920f;
+    private float viewportWidth = 1080f;
+    private float viewportHeight = 1920f;
     private final float REF_HperW = 1.64f;
     private float HperW;
 
@@ -26,20 +27,6 @@ public class GameConfiguration {
     }
 
     private GameConfiguration() {
-    }
-
-    public float getViewportWidth() {
-        return this.viewportWidth;
-    }
-
-    public float getViewportHeight() {
-        float height;
-        if (getHperW() < this.REF_HperW) {
-            height = viewportHeight;
-        } else {
-            height = Gdx.graphics.getHeight() / (Gdx.graphics.getWidth() / viewportWidth);
-        }
-        return height;
     }
 
     public void clearAllGamePreferences() {
@@ -60,12 +47,28 @@ public class GameConfiguration {
         this.afterInterstitialAdCount = afterInterstitialAdCount;
     }
 
-    public float getHperW() {
-        return HperW;
+    public float getViewportWidth() {
+        return viewportWidth;
     }
 
-    public void setHperW(float hperW) {
-        HperW = hperW;
+    public void setViewportWidth(float viewportWidth) {
+        this.viewportWidth = viewportWidth;
     }
 
+    public float getViewportHeight() {
+        return viewportHeight;
+    }
+
+    public void setViewportHeight(float viewportHeight) {
+        this.viewportHeight = viewportHeight;
+    }
+    public void setViewportSize(float width, float height, boolean isResetH){
+        setViewportWidth(width);
+        setViewportHeight(height);
+        if(isResetH){
+            if(((float) Gdx.graphics.getHeight() / (float) Gdx.graphics.getWidth())>=this.REF_HperW){
+                setViewportHeight(Gdx.graphics.getHeight() / (Gdx.graphics.getWidth() / viewportWidth));
+            }
+        }
+    }
 }

@@ -2,12 +2,9 @@ package dalcoms.ex.box2dex;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Preferences;
-import com.badlogic.gdx.utils.TimeUtils;
-
-import java.util.Date;
 
 public class GameConfiguration {
-    private final String tag = "GameConfiguration";
+    private static final String tag = "GameConfiguration";
     private static final GameConfiguration instance = new GameConfiguration();
 
     Preferences preferences = Gdx.app.getPreferences("hs.app.skinvibrator.preference");
@@ -18,6 +15,10 @@ public class GameConfiguration {
     private float viewportHeight = 1920f;
     private final float REF_HperW = 1.64f;
     private float HperW;
+
+    private float physicsWorldWidth = 50f;
+    private float physicsWorldHeight = 50f;
+    private float physicScreenRatio = 0.0463f;
 
     private int afterInterstitialAdCount = 0; //Clear to 0 as InterAd popup
 
@@ -62,13 +63,49 @@ public class GameConfiguration {
     public void setViewportHeight(float viewportHeight) {
         this.viewportHeight = viewportHeight;
     }
-    public void setViewportSize(float width, float height, boolean isResetH){
+
+    public void setViewportSize(float width, float height, boolean isResetH) {
         setViewportWidth(width);
         setViewportHeight(height);
-        if(isResetH){
-            if(((float) Gdx.graphics.getHeight() / (float) Gdx.graphics.getWidth())>=this.REF_HperW){
-                setViewportHeight(Gdx.graphics.getHeight() / (Gdx.graphics.getWidth() / viewportWidth));
+        if (isResetH) {
+            if (((float) Gdx.graphics.getHeight() / (float) Gdx.graphics.getWidth()) >=
+                this.REF_HperW) {
+                setViewportHeight(
+                        Gdx.graphics.getHeight() / (Gdx.graphics.getWidth() / viewportWidth));
             }
         }
+    }
+
+    public void setPhysicsWorldSize(float worldWidth) {
+        this.physicsWorldWidth = worldWidth;
+        this.physicScreenRatio = this.physicsWorldHeight / getViewportWidth();
+        this.physicsWorldHeight = this.physicScreenRatio * this.viewportHeight;
+
+        Gdx.app.log(tag, "Physics world size : ratio=" + physicScreenRatio + ",width=" +
+                         physicsWorldWidth + ",height=" + physicsWorldHeight);
+    }
+
+    public float getPhysicsWorldWidth() {
+        return physicsWorldWidth;
+    }
+
+    public void setPhysicsWorldWidth(float physicsWorldWidth) {
+        this.physicsWorldWidth = physicsWorldWidth;
+    }
+
+    public float getPhysicsWorldHeight() {
+        return physicsWorldHeight;
+    }
+
+    public void setPhysicsWorldHeight(float physicsWorldHeight) {
+        this.physicsWorldHeight = physicsWorldHeight;
+    }
+
+    public float getPhysicScreenRatio() {
+        return physicScreenRatio;
+    }
+
+    public void setPhysicScreenRatio(float physicScreenRatio) {
+        this.physicScreenRatio = physicScreenRatio;
     }
 }

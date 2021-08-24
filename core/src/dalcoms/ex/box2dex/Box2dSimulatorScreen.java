@@ -149,8 +149,8 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
             Sprite sprite = (Sprite) body.getUserData();
 
             if (sprite != null) {
-                Gdx.app.log(tag, "sprite y." + sprite.getY());
-                sprite.setPosition(body.getPosition().x, body.getPosition().y);
+                Gdx.app.log(tag, "body x." + body.getPosition().x);
+                sprite.setCenter(body.getPosition().x, body.getPosition().y);
                 sprite.setRotation(MathUtils.radiansToDegrees * body.getAngle());
                 sprite.draw(game.getSpriteBatch());
             }
@@ -191,14 +191,17 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         Sprite sCircle =
                 new Sprite(game.getAssetManager().get("img/circle_100px.png", Texture.class));
         sCircle.setPosition(body.getPosition().x, body.getPosition().y);
-        sCircle.setOrigin(getPhysicScreenRatio() * sCircle.getWidth() / 2f,
-                          getPhysicScreenRatio() * sCircle.getHeight() / 2f);
-        sCircle.setScale(getPhysicScreenRatio());
+//        sCircle.setOrigin(getPhysicScreenRatio() * sCircle.getWidth() / 2f,
+//                          getPhysicScreenRatio() * sCircle.getHeight() / 2f);
+//        sCircle.setScale(getPhysicScreenRatio());
+        sCircle.setSize(getPhysicScreenRatio() * sCircle.getWidth(),
+                        getPhysicScreenRatio() * sCircle.getHeight());
+        sCircle.setOriginCenter();
         body.setUserData(sCircle);
 
 // Create a circle shape and set its radius to 6
         CircleShape circle = new CircleShape();
-        circle.setRadius(getPhysicScreenRatio() * sCircle.getWidth() / 2f);
+        circle.setRadius(sCircle.getWidth() / 2f);
 
 // Create a fixture definition to apply our shape to
         FixtureDef fixtureDef = new FixtureDef();
@@ -217,7 +220,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         // Create our body definition
         BodyDef groundBodyDef = new BodyDef();
 // Set its world position
-        groundBodyDef.position.set(new Vector2(0, 10));
+        groundBodyDef.position.set(new Vector2(getWorldWith()/2f, getWorldHeight() * 0.1f));
 
 // Create a body from the definition and add it to the world
         Body groundBody = world.createBody(groundBodyDef);
@@ -226,7 +229,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         PolygonShape groundBox = new PolygonShape();
 // Set the polygon shape as a box which is twice the size of our view port and 20 high
 // (setAsBox takes half-width and half-height as arguments)
-        groundBox.setAsBox(camera.viewportWidth, 10.0f);
+        groundBox.setAsBox(camera.viewportWidth, getWorldHeight() * 0.05f);
 // Create a fixture from our polygon shape and add it to our ground body
         groundBody.createFixture(groundBox, 0.0f);
 // Clean up after ourselves

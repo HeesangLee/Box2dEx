@@ -33,7 +33,7 @@ public class Box2dExGame extends Game {
 
         gameConfiguration = GameConfiguration.getInstance();
         gameConfiguration.setViewportSize(1080f, 1920f, true);
-        gameConfiguration.setPhysicsWorldSize(50f);
+        gameConfiguration.setPhysicsWorldSize(5f);
         logViewPortSize();
 
         if (REMOVE_PREFERENCES) {

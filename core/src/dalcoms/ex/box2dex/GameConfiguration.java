@@ -78,7 +78,7 @@ public class GameConfiguration {
 
     public void setPhysicsWorldSize(float worldWidth) {
         this.physicsWorldWidth = worldWidth;
-        this.physicScreenRatio = this.physicsWorldHeight / getViewportWidth();
+        this.physicScreenRatio = this.physicsWorldWidth / getViewportWidth();
         this.physicsWorldHeight = this.physicScreenRatio * this.viewportHeight;
 
         Gdx.app.log(tag, "Physics world size : ratio=" + physicScreenRatio + ",width=" +

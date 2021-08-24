@@ -208,7 +208,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         fixtureDef.shape = circle;
         fixtureDef.density = 0.5f;
         fixtureDef.friction = 0.4f;
-        fixtureDef.restitution = 0.8f; // Make it bounce a little bit
+        fixtureDef.restitution = 0.5f; // Make it bounce a little bit
 
 // Create our fixture and attach it to the body
         Fixture fixture = body.createFixture(fixtureDef);
@@ -232,6 +232,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         groundBox.setAsBox(camera.viewportWidth, getWorldHeight() * 0.05f);
 // Create a fixture from our polygon shape and add it to our ground body
         groundBody.createFixture(groundBox, 0.0f);
+
 // Clean up after ourselves
         groundBox.dispose();
     }

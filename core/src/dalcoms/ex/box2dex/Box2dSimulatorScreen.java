@@ -7,7 +7,10 @@ import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.input.GestureDetector;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef;
@@ -35,6 +38,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     Viewport viewport;
     GameTimer gameTimer;
     private Array<Renderable> renderables;
+    private Array<Body> physicsBodies;
     private Array<IGestureInput> gestureDetectables;
     private Array<IGestureInput> gestureDetectablesTop;
     private boolean gestureDetectTop = false;
@@ -43,16 +47,26 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
 
     static final boolean LOG_GAME_TIMER_ON = false;
 
+    World world;
+    Box2DDebugRenderer debugRenderer;
+    private float accumulator = 0;
+    static final float WORLD_TIME_STEP = 1 / 60f;
+    static final int WORLD_VELOCITY_ITERATIONS = 6;
+    static final int WORLD_POSITION_ITERATIONS = 2;
+
+    private float worldWith, worldHeight, physicScreenRatio;
+
     public Box2dSimulatorScreen(final Box2dExGame game) {
-
-
         this.game = game;
         this.camera = new OrthographicCamera();
-        camera.setToOrtho(false, game.getGameConfiguration().getPhysicsWorldWidth(),
-                          game.getGameConfiguration().getPhysicsWorldHeight());
-        this.viewport = new FitViewport(game.getGameConfiguration().getPhysicsWorldWidth(),
-                                        game.getGameConfiguration().getPhysicsWorldHeight(),
-                                        camera);
+
+        setWorldSize(game.getGameConfiguration().getPhysicsWorldWidth(),
+                     game.getGameConfiguration().getPhysicsWorldHeight());
+        setPhysicScreenRatio(game.getGameConfiguration().getPhysicScreenRatio());
+
+        camera.setToOrtho(false, getWorldWith(), getWorldHeight());
+        this.viewport = new FitViewport(getWorldWith(), getWorldHeight(), camera);
+
         Gdx.app.log(tag,
                     "camera:Orthographic,viewport width=" + viewport.getWorldWidth() + ",height=" +
                     viewport.getWorldHeight());
@@ -63,6 +77,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     @Override
     public void show() {
         renderables = new Array<>();
+        physicsBodies = new Array<>();
         gestureDetectables = new Array<>();
         gestureDetectablesTop = new Array<>();
 
@@ -77,7 +92,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     public void render(float delta) {
         draw(delta);
         doPhysicsStep(delta);
-        debugRenderer.render(world,camera.combined);
+        debugRenderer.render(world, camera.combined);
     }
 
     @Override
@@ -129,16 +144,20 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         for (Renderable renderable : renderables) {
             renderable.render(delta);
         }
+        world.getBodies(physicsBodies);
+        for (Body body : physicsBodies) {
+            Sprite sprite = (Sprite) body.getUserData();
+
+            if (sprite != null) {
+                Gdx.app.log(tag, "sprite y." + sprite.getY());
+                sprite.setPosition(body.getPosition().x, body.getPosition().y);
+                sprite.setRotation(MathUtils.radiansToDegrees * body.getAngle());
+                sprite.draw(game.getSpriteBatch());
+            }
+        }
 
         game.getSpriteBatch().end();
     }
-
-    World world;
-    Box2DDebugRenderer debugRenderer;
-    private float accumulator = 0;
-    static final float WORLD_TIME_STEP = 1 / 60f;
-    static final int WORLD_VELOCITY_ITERATIONS = 6;
-    static final int WORLD_POSITION_ITERATIONS = 2;
 
 
     private void initPhysicsWorld(float gravityX, float gravityY) {
@@ -165,21 +184,28 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
 // We set our body to dynamic, for something like ground which doesn't move we would set it to StaticBody
         bodyDef.type = BodyDef.BodyType.DynamicBody;
 // Set our body's starting position in the world
-        bodyDef.position.set(15, 50);
+        bodyDef.position.set(getWorldWith() / 2f, getWorldHeight());
 
 // Create our body in the world using our body definition
         Body body = world.createBody(bodyDef);
+        Sprite sCircle =
+                new Sprite(game.getAssetManager().get("img/circle_100px.png", Texture.class));
+        sCircle.setPosition(body.getPosition().x, body.getPosition().y);
+        sCircle.setOrigin(getPhysicScreenRatio() * sCircle.getWidth() / 2f,
+                          getPhysicScreenRatio() * sCircle.getHeight() / 2f);
+        sCircle.setScale(getPhysicScreenRatio());
+        body.setUserData(sCircle);
 
 // Create a circle shape and set its radius to 6
         CircleShape circle = new CircleShape();
-        circle.setRadius(3f);
+        circle.setRadius(getPhysicScreenRatio() * sCircle.getWidth() / 2f);
 
 // Create a fixture definition to apply our shape to
         FixtureDef fixtureDef = new FixtureDef();
         fixtureDef.shape = circle;
         fixtureDef.density = 0.5f;
         fixtureDef.friction = 0.4f;
-        fixtureDef.restitution = 0.6f; // Make it bounce a little bit
+        fixtureDef.restitution = 0.8f; // Make it bounce a little bit
 
 // Create our fixture and attach it to the body
         Fixture fixture = body.createFixture(fixtureDef);
@@ -373,5 +399,34 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         });
 
         Gdx.input.setInputProcessor(inputMultiplexer);
+    }
+
+    public float getWorldWith() {
+        return worldWith;
+    }
+
+    public void setWorldWith(float worldWith) {
+        this.worldWith = worldWith;
+    }
+
+    public float getWorldHeight() {
+        return worldHeight;
+    }
+
+    public void setWorldHeight(float worldHeight) {
+        this.worldHeight = worldHeight;
+    }
+
+    private void setWorldSize(float w, float h) {
+        setWorldWith(w);
+        setWorldHeight(h);
+    }
+
+    public float getPhysicScreenRatio() {
+        return physicScreenRatio;
+    }
+
+    public void setPhysicScreenRatio(float physicScreenRatio) {
+        this.physicScreenRatio = physicScreenRatio;
     }
 }

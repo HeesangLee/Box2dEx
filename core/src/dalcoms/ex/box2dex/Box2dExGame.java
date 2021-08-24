@@ -83,7 +83,7 @@ public class Box2dExGame extends Game {
     }
 
     private void loadAssetGameScreen() {
-
+        assetManager.load("img/circle_100px.png", Texture.class, para);
     }
 
     private void gotoSplashScreen(String assetTobeLoading, Class classType) {

@@ -32,7 +32,8 @@ public class Box2dExGame extends Game {
         batch = new SpriteBatch();
 
         gameConfiguration = GameConfiguration.getInstance();
-        gameConfiguration.setViewportSize(1080f,1920f,true);
+        gameConfiguration.setViewportSize(1080f, 1920f, true);
+        gameConfiguration.setPhysicsWorldSize(5f);
         logViewPortSize();
 
         if (REMOVE_PREFERENCES) {
@@ -73,6 +74,7 @@ public class Box2dExGame extends Game {
         loadAssetsSplashScreen();
         loadAssetGameScreen();
     }
+
     private void loadAssetsSplashScreen() {
         assetManager.load("img/txt_dalcoms.png", Texture.class, para);
         assetManager.finishLoadingAsset("img/txt_dalcoms.png");
@@ -80,8 +82,8 @@ public class Box2dExGame extends Game {
         assetManager.finishLoadingAsset("img/rect_18x18.png");
     }
 
-    private void loadAssetGameScreen(){
-
+    private void loadAssetGameScreen() {
+        assetManager.load("img/circle_100px.png", Texture.class, para);
     }
 
     private void gotoSplashScreen(String assetTobeLoading, Class classType) {

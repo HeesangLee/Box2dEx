@@ -5,6 +5,7 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
@@ -28,11 +29,17 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import dalcoms.lib.libgdx.GameGestureListener;
 import dalcoms.lib.libgdx.GameTimer;
 import dalcoms.lib.libgdx.IGestureInput;
+import dalcoms.lib.libgdx.Point2DFloat;
 import dalcoms.lib.libgdx.Renderable;
+import dalcoms.lib.libgdx.SpriteGameObject;
+import dalcoms.lib.libgdx.SpriteSimpleToggleButton;
+import dalcoms.lib.libgdx.easingfunctions.EaseBounceOut;
+import dalcoms.lib.libgdx.easingfunctions.EaseElasticInOut;
 
 
 class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     static final String tag = "Box2dSimulatorScreen";
+    static final boolean DEBUG_PHYSICS_RENDER = true;
     final Box2dExGame game;
     OrthographicCamera camera;
     Viewport viewport;
@@ -55,6 +62,9 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     static final int WORLD_POSITION_ITERATIONS = 2;
 
     private float worldWith, worldHeight, physicScreenRatio;
+    Array<SpriteGameObject> upperWalls;
+    Array<SpriteGameObject> bottomWalls;
+    SpriteSimpleToggleButton addRemoveButton;
 
     public Box2dSimulatorScreen(final Box2dExGame game) {
         this.game = game;
@@ -90,9 +100,9 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
 
     @Override
     public void render(float delta) {
-        draw(delta);
         doPhysicsStep(delta);
-        debugRenderer.render(world, camera.combined);
+        draw(delta);
+        debugPhysicRender();
     }
 
     @Override
@@ -127,10 +137,10 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
 
     private void loadBgColor() {
         //load color from config or set color to default.
-//        bgColorR = getFloatColor255(255f);
-//        bgColorG = getFloatColor255(204f);
-//        bgColorB = getFloatColor255(0f);
-//        bgColorA = getFloatColor255(255f);
+        bgColorR = getFloatColor255(0x35);
+        bgColorG = getFloatColor255(0x2c);
+        bgColorB = getFloatColor255(0x41);
+        bgColorA = getFloatColor255(255f);
     }
 
     private void draw(float delta) {
@@ -144,6 +154,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         for (Renderable renderable : renderables) {
             renderable.render(delta);
         }
+
         world.getBodies(physicsBodies);
         for (Body body : physicsBodies) {
             Sprite sprite = (Sprite) body.getUserData();
@@ -167,6 +178,12 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
 
     }
 
+    private void debugPhysicRender() {
+        if (DEBUG_PHYSICS_RENDER) {
+            debugRenderer.render(world, camera.combined);
+        }
+    }
+
     private void doPhysicsStep(float deltaTime) {//https://github.com/libgdx/libgdx/wiki/Box2d
         // fixed time step
         // max frame time to avoid spiral of death (on slow devices)
@@ -179,12 +196,175 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     }
 
     private void initGameObjects() {
-// First we create a body definition
+        addWalls();
+        addTestBodies();
+        initTopButtons();
+    }
+
+    private void initTopButtons() {
+        initEditRunButton();
+        initAddRemoveButton();
+    }
+
+    private void initEditRunButton() {
+        final SpriteSimpleToggleButton editRunButton =
+                new SpriteSimpleToggleButton(
+                        game.getAssetManager().get("img/modeEdit.png", Texture.class),
+                        game.getAssetManager().get("img/modePlay.png", Texture.class),
+                        viewport, this.game.getSpriteBatch(),
+                        toWorldDimension(32f),
+                        toWorldDimension(game.getLocationYFromTop(207f)));
+        editRunButton.setSize(toWorldSize(editRunButton.getSize()));
+        editRunButton.setSpriteOriginCenter();
+
+        editRunButton.setBtnToggleState(SpriteSimpleToggleButton.ButtonState.DEFAULT);
+        editRunButton.setEventListenerTab(new GameGestureListener.TabEventListener() {
+            @Override
+            public void onEvent(float v, float v1, int i, int i1) {
+                if (editRunButton.getBtnToggleState() ==
+                    SpriteSimpleToggleButton.ButtonState.DEFAULT) {
+                    Gdx.app.log(tag, "Edit/Run Button : Tab = Default");
+                    if (addRemoveButton != null) {//Edit mode
+                        addRemoveButton
+                                .moveY(toWorldDimension(game.getLocationYFromTop(207f)), 0.5f,
+                                       EaseBounceOut.getInstance());
+                    }
+                } else {
+                    Gdx.app.log(tag, "Edit/Run Button : Tab = Toggle");
+                    if (addRemoveButton != null) {//Run mode
+                        addRemoveButton.moveY(toWorldDimension(game.getLocationYFromTop(0)), 0.1f);
+                    }
+                }
+            }
+        });
+        renderables.add(editRunButton);
+        gestureDetectables.add(editRunButton);
+    }
+
+    private void initAddRemoveButton() {
+        addRemoveButton =
+                new SpriteSimpleToggleButton(
+                        game.getAssetManager().get("img/editAdd.png", Texture.class),
+                        game.getAssetManager().get("img/editDelete.png", Texture.class),
+                        viewport, this.game.getSpriteBatch(),
+                        toWorldDimension(32f * 2f + 136f),
+                        toWorldDimension(game.getLocationYFromTop(207f)));
+        addRemoveButton.setSize(toWorldSize(addRemoveButton.getSize()));
+        addRemoveButton.setSpriteOriginCenter();
+
+        addRemoveButton.setBtnToggleState(SpriteSimpleToggleButton.ButtonState.DEFAULT);
+        addRemoveButton.setEventListenerTab(new GameGestureListener.TabEventListener() {
+            @Override
+            public void onEvent(float v, float v1, int i, int i1) {
+                if (addRemoveButton.getBtnToggleState() ==
+                    SpriteSimpleToggleButton.ButtonState.DEFAULT) {
+                    Gdx.app.log(tag, "Add/Remove Button : Tab = Default");
+                } else {
+                    Gdx.app.log(tag, "Add/Remove Button : Tab = Toggle");
+                }
+            }
+        });
+        renderables.add(addRemoveButton);
+        gestureDetectables.add(addRemoveButton);
+    }
+
+    private void addWalls() {
+        addUpperWall();
+        addSideWalls();
+        addBottomWall(true);
+    }
+
+
+    private void addUpperWall() {
+        final int WALL_CNT = 40;
+        upperWalls = new Array<>();
+
+        for (int i = 0; i < WALL_CNT; i++) {
+            SpriteGameObject wallUnit =
+                    new SpriteGameObject(game.getAssetManager().get("img/rect_16x62.png",
+                                                                    Texture.class),
+                                         getWorldWith() / 2f +
+                                         toWorldDimension(
+                                                 game.getAssetManager().get("img/rect_16x62.png",
+                                                                            Texture.class)
+                                                     .getWidth() / 2f),
+                                         toWorldDimension(game.getLocationYFromTop(340f)))
+                            .setSpriteBatch(game.getSpriteBatch());
+            wallUnit.setSize(toWorldSize(wallUnit.getSize()));
+            wallUnit.getSprite().setOriginCenter();
+            wallUnit.setColor(new Color(0xfbe5b3ff));
+            upperWalls.add(wallUnit);
+        }
+        int i = 0;
+        float gap_wallWidth =
+                (getWorldWith() - upperWalls.get(0).getWidth() * WALL_CNT) / (WALL_CNT - 1)
+                + upperWalls.get(0).getWidth();
+        for (SpriteGameObject wallUnit : upperWalls) {
+            float toX = gap_wallWidth * i++;
+            wallUnit.moveX(toX, 1f, EaseBounceOut.getInstance());
+            renderables.add(wallUnit);
+        }
+        createStaticBoxBody(new Vector2(getWorldWith() / 2, upperWalls.get(0).getCenterLocationY()),
+                            getWorldWith() / 2f, upperWalls.get(0).getHeight() / 2f);
+    }
+
+    private void addSideWalls() {
+        final float width = toWorldDimension(16f);
+        final float height = toWorldDimension(136f * 9f + 16f * 10f);
+        final float xLeft = width / 2f;
+        final float xRight = getWorldWith() - width / 2f;
+        final float y = upperWalls.get(0).getLocationY() -
+                        toWorldDimension((136f * 9f + 16f * 10f) / 2f);
+
+        createStaticBoxBody(new Vector2(xLeft, y), width / 2f, height / 2f);
+        createStaticBoxBody(new Vector2(xRight, y), width / 2f, height / 2f);
+    }
+
+    private void addBottomWall(boolean isPhysicsBody) {
+        final int WALL_CNT = 40;
+        bottomWalls = new Array<>();
+
+        for (int i = 0; i < WALL_CNT; i++) {
+            SpriteGameObject wallUnit =
+                    new SpriteGameObject(game.getAssetManager().get("img/rect_16x62.png",
+                                                                    Texture.class),
+                                         getWorldWith() / 2f +
+                                         toWorldDimension(
+                                                 game.getAssetManager().get("img/rect_16x62.png",
+                                                                            Texture.class)
+                                                     .getWidth() / 2f),
+                                         toWorldDimension(game.getLocationYFromTop(
+                                                 340f + 62 + 136f * 9f + 16f * 10f)))
+                            .setSpriteBatch(game.getSpriteBatch());
+            wallUnit.setSize(toWorldSize(wallUnit.getSize()));
+            wallUnit.getSprite().setOriginCenter();
+            wallUnit.setColor(new Color(isPhysicsBody ? 0xfbe5b3ff : 0x000000ff));
+            bottomWalls.add(wallUnit);
+        }
+        int i = 0;
+        float gap_wallWidth =
+                (getWorldWith() - bottomWalls.get(0).getWidth() * WALL_CNT) / (WALL_CNT - 1)
+                + bottomWalls.get(0).getWidth();
+        for (SpriteGameObject wallUnit : bottomWalls) {
+            float toX = gap_wallWidth * i++;
+            wallUnit.moveX(toX, 1f, EaseBounceOut.getInstance());
+            renderables.add(wallUnit);
+        }
+        if (isPhysicsBody) {
+            createStaticBoxBody(
+                    new Vector2(getWorldWith() / 2, bottomWalls.get(0).getCenterLocationY()),
+                    getWorldWith() / 2f, bottomWalls.get(0).getHeight() / 2f);
+        }
+
+    }
+
+    private void addTestBodies() {
+        // First we create a body definition
         BodyDef bodyDef = new BodyDef();
 // We set our body to dynamic, for something like ground which doesn't move we would set it to StaticBody
         bodyDef.type = BodyDef.BodyType.DynamicBody;
 // Set our body's starting position in the world
-        bodyDef.position.set(getWorldWith() / 2f, getWorldHeight());
+        bodyDef.position.set(getWorldWith() / 2f, getWorldHeight()/2f);
 
 // Create our body in the world using our body definition
         Body body = world.createBody(bodyDef);
@@ -208,7 +388,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         fixtureDef.shape = circle;
         fixtureDef.density = 0.5f;
         fixtureDef.friction = 0.4f;
-        fixtureDef.restitution = 0.5f; // Make it bounce a little bit
+        fixtureDef.restitution = 1f; // Make it bounce a little bit
 
 // Create our fixture and attach it to the body
         Fixture fixture = body.createFixture(fixtureDef);
@@ -217,25 +397,18 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
 // BodyDef and FixtureDef don't need disposing, but shapes do.
         circle.dispose();
 
-        // Create our body definition
-        BodyDef groundBodyDef = new BodyDef();
-// Set its world position
-        groundBodyDef.position.set(new Vector2(getWorldWith()/2f, getWorldHeight() * 0.1f));
-
-// Create a body from the definition and add it to the world
-        Body groundBody = world.createBody(groundBodyDef);
-
-// Create a polygon shape
-        PolygonShape groundBox = new PolygonShape();
-// Set the polygon shape as a box which is twice the size of our view port and 20 high
-// (setAsBox takes half-width and half-height as arguments)
-        groundBox.setAsBox(camera.viewportWidth, getWorldHeight() * 0.05f);
-// Create a fixture from our polygon shape and add it to our ground body
-        groundBody.createFixture(groundBox, 0.0f);
-
-// Clean up after ourselves
-        groundBox.dispose();
     }
+
+    private void createStaticBoxBody(Vector2 position, float hx, float hy) {
+        BodyDef bodyDef = new BodyDef();
+        bodyDef.position.set(position);
+        Body body = world.createBody(bodyDef);
+        PolygonShape polygonShape = new PolygonShape();
+        polygonShape.setAsBox(hx, hy);
+        body.createFixture(polygonShape, 0.0f);
+        polygonShape.dispose();
+    }
+
 
     @Override
     public void onTimer1sec(float v, int i) {
@@ -432,5 +605,18 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
 
     public void setPhysicScreenRatio(float physicScreenRatio) {
         this.physicScreenRatio = physicScreenRatio;
+    }
+
+    /**
+     * @param designDimension gameDesign dimension
+     * @return converted dimension to physics world
+     */
+    private float toWorldDimension(float designDimension) {
+        return getPhysicScreenRatio() * designDimension;
+    }
+
+    private Point2DFloat toWorldSize(Point2DFloat objSize) {
+        return new Point2DFloat(objSize.getX() * getPhysicScreenRatio(),
+                                objSize.getY() * getPhysicScreenRatio());
     }
 }

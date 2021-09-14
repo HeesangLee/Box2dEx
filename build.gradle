@@ -28,7 +28,7 @@ allprojects {
         aiVersion = '1.8.2'
         gdxControllersVersion = '2.1.0'
         dalcomsLibGdxVersion = '1.0.0'
-        dalcomsLibGdxCommitN = 'fbf1909'
+        dalcomsLibGdxCommitN = '4fd4477'
     }
 
     repositories {

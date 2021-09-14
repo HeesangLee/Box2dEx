@@ -30,8 +30,10 @@ import dalcoms.lib.libgdx.GameGestureListener;
 import dalcoms.lib.libgdx.GameTimer;
 import dalcoms.lib.libgdx.IGestureInput;
 import dalcoms.lib.libgdx.Point2DFloat;
+import dalcoms.lib.libgdx.Point2DInt;
 import dalcoms.lib.libgdx.Renderable;
 import dalcoms.lib.libgdx.SpriteGameObject;
+import dalcoms.lib.libgdx.SpriteSimpleButton;
 import dalcoms.lib.libgdx.SpriteSimpleToggleButton;
 import dalcoms.lib.libgdx.easingfunctions.EaseBounceOut;
 import dalcoms.lib.libgdx.easingfunctions.EaseElasticInOut;
@@ -198,8 +200,34 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     private void initGameObjects() {
         addWalls();
         addTestBodies();
+        initBrickLocationButtons(7, 9);
         initTopButtons();
     }
+
+    Array<SpriteSimpleButton> brickLocationButtons;
+
+    private void initBrickLocationButtons(int cntX, int cntY) {
+        brickLocationButtons = new Array<>();
+        for (int x = 0; x < cntX; x++) {
+            for (int y = 0; y < cntY; y++) {
+                SpriteSimpleButton ssbBrickLocBtn =
+                        new SpriteSimpleButton(
+                                game.getAssetManager().get("img/btnAddPos.png", Texture.class),
+                                viewport, game.getSpriteBatch(),
+                                0, 0);
+                ssbBrickLocBtn.setUserData(new Point2DInt(x, y));
+                ssbBrickLocBtn.setSize(toWorldSize(ssbBrickLocBtn.getSize()));
+                SpriteGameObject sgoHolo = new SpriteGameObject(
+                        game.getAssetManager().get("img/brickCircle.png", Texture.class),
+                        0, 0);
+                sgoHolo.setColor(new Color(0x00000080));
+                sgoHolo.setSize(toWorldSize(sgoHolo.getSize()));
+                ssbBrickLocBtn.setSgoTouchHolo(sgoHolo);
+                ssbBrickLocBtn.setOnTouchEffect(SpriteSimpleButton.OnTouchEffect.HOLO);
+            }
+        }
+    }
+
 
     private void initTopButtons() {
         initEditRunButton();
@@ -364,7 +392,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
 // We set our body to dynamic, for something like ground which doesn't move we would set it to StaticBody
         bodyDef.type = BodyDef.BodyType.DynamicBody;
 // Set our body's starting position in the world
-        bodyDef.position.set(getWorldWith() / 2f, getWorldHeight()/2f);
+        bodyDef.position.set(getWorldWith() / 2f, getWorldHeight() / 2f);
 
 // Create our body in the world using our body definition
         Body body = world.createBody(bodyDef);

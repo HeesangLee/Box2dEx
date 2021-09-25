@@ -21,6 +21,7 @@ import com.badlogic.gdx.physics.box2d.CircleShape;
 import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
 import com.badlogic.gdx.physics.box2d.PolygonShape;
+import com.badlogic.gdx.physics.box2d.Shape;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.viewport.FitViewport;
@@ -36,6 +37,7 @@ import dalcoms.lib.libgdx.SpriteGameObject;
 import dalcoms.lib.libgdx.SpriteSimpleButton;
 import dalcoms.lib.libgdx.SpriteSimpleToggleButton;
 import dalcoms.lib.libgdx.easingfunctions.EaseBounceOut;
+import dalcoms.lib.libgdx.easingfunctions.EaseCircOut;
 import dalcoms.lib.libgdx.easingfunctions.EaseElasticInOut;
 
 
@@ -66,7 +68,8 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     private float worldWith, worldHeight, physicScreenRatio;
     Array<SpriteGameObject> upperWalls;
     Array<SpriteGameObject> bottomWalls;
-    SpriteSimpleToggleButton addRemoveButton;
+    SpriteSimpleToggleButton editRunButton, addRemoveButton;
+    Array<SpriteSimpleButton> brickLocationButtons;
 
     public Box2dSimulatorScreen(final Box2dExGame game) {
         this.game = game;
@@ -159,13 +162,15 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
 
         world.getBodies(physicsBodies);
         for (Body body : physicsBodies) {
-            Sprite sprite = (Sprite) body.getUserData();
+            SpriteGameObject sgo = (SpriteGameObject) body.getUserData();
 
-            if (sprite != null) {
-                Gdx.app.log(tag, "body x." + body.getPosition().x);
-                sprite.setCenter(body.getPosition().x, body.getPosition().y);
-                sprite.setRotation(MathUtils.radiansToDegrees * body.getAngle());
-                sprite.draw(game.getSpriteBatch());
+            if (sgo != null) {
+//                Gdx.app.log(tag, "body x." + body.getPosition().x);
+//                sprite.setCenter(body.getPosition().x, body.getPosition().y);
+//                sprite.setRotation(MathUtils.radiansToDegrees * body.getAngle());
+//                sprite.draw(game.getSpriteBatch());
+                sgo.setCenterLocation(body.getPosition().x, body.getPosition().y);
+                sgo.setRotationAngle(MathUtils.radiansToDegrees * body.getAngle());
             }
         }
 
@@ -199,18 +204,55 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
 
     private void initGameObjects() {
         addWalls();
-        addTestBodies();
+//        addTestBodies();
         initBrickLocationButtons(7, 9);
-        initTopButtons();
+        initTopMenu();
+        initBottomMenu();
     }
 
-    Array<SpriteSimpleButton> brickLocationButtons;
+
+    private void showBrickLocButtons() {
+        final float gap = toWorldDimension(16f);
+        final float wh = toWorldDimension(136f);
+        final float headerY = toWorldDimension(game.getLocationYFromTop(340f));
+        final float movingT = 0.5f;
+        float locX, locY;
+
+        for (SpriteSimpleButton ssb : brickLocationButtons) {
+            Point2DInt ref2d = (Point2DInt) ssb.getUserData();
+            locX = (wh + gap) * (float) ref2d.getX() + gap;
+            locY = headerY - (wh + gap) * (float) (9 - ref2d.getY());
+            ssb.move(locX, locY, movingT, EaseCircOut.getInstance());
+        }
+    }
+
+    private void hideBrickLocButtons() {
+        for (SpriteSimpleButton ssb : brickLocationButtons) {
+            ssb.move(getWorldWith() / 2f - toWorldDimension(136f / 2f),
+                     getWorldHeight() * 1.1f,
+                     0.1f);
+        }
+    }
+
+    private void onTabBrickLocButton(Point2DInt refPos) {
+        boolean isModeEdit = editRunButton.getBtnToggleState() ==
+                             SpriteSimpleToggleButton.ButtonState.DEFAULT;
+        boolean isAddRemove = addRemoveButton.getBtnToggleState() ==
+                              SpriteSimpleToggleButton.ButtonState.DEFAULT;
+
+        if (isAddRemove) {//add
+//            createBoxBrick(getCenterPosByRef(refPos));
+            createBrick(refPos, BRICK.getValue(getBrickSelGroupSelected()));
+        } else {//remove
+
+        }
+    }
 
     private void initBrickLocationButtons(int cntX, int cntY) {
         brickLocationButtons = new Array<>();
         for (int x = 0; x < cntX; x++) {
             for (int y = 0; y < cntY; y++) {
-                SpriteSimpleButton ssbBrickLocBtn =
+                final SpriteSimpleButton ssbBrickLocBtn =
                         new SpriteSimpleButton(
                                 game.getAssetManager().get("img/btnAddPos.png", Texture.class),
                                 viewport, game.getSpriteBatch(),
@@ -220,22 +262,107 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
                 SpriteGameObject sgoHolo = new SpriteGameObject(
                         game.getAssetManager().get("img/brickCircle.png", Texture.class),
                         0, 0);
-                sgoHolo.setColor(new Color(0x00000080));
+                sgoHolo.setColor(new Color(0xffffff80));
                 sgoHolo.setSize(toWorldSize(sgoHolo.getSize()));
+                sgoHolo.setSpriteOriginCenter();
                 ssbBrickLocBtn.setSgoTouchHolo(sgoHolo);
                 ssbBrickLocBtn.setOnTouchEffect(SpriteSimpleButton.OnTouchEffect.HOLO);
+
+                ssbBrickLocBtn.setEventListenerTab(new GameGestureListener.TabEventListener() {
+                    @Override
+                    public void onEvent(float v, float v1, int i, int i1) {
+                        onTabBrickLocButton((Point2DInt) ssbBrickLocBtn.getUserData());
+                    }
+                });
+
+                brickLocationButtons.add(ssbBrickLocBtn);
+                renderables.add(ssbBrickLocBtn);
+                gestureDetectables.add(ssbBrickLocBtn);
             }
         }
     }
 
+    Array<SpriteSimpleButton> brickSelGroup;
+    private int brickSelGroupSelected = 0;
 
-    private void initTopButtons() {
+    private void onTabBrickSelBtnGroup(int btnNum) {
+        Gdx.app.log(tag, "onTabBrickSelBtnGroup : " + btnNum);
+        Color disColor = new Color(0xffffff80);
+        Color[] enColorArr = {
+                new Color(0x759f91ff), new Color(0xdb045bff), new Color(0xfa833dff),
+                new Color(0xfa833dff), new Color(0xfa833dff), new Color(0xfa833dff)};
+
+        setBrickSelGroupSelected(btnNum);
+
+        for (SpriteSimpleButton ssb : brickSelGroup) {
+            ssb.setColor(
+                    ssb.getIndex() == getBrickSelGroupSelected() ?
+                            enColorArr[brickSelGroupSelected] :
+                            disColor);
+        }
+    }
+
+    public int getBrickSelGroupSelected() {
+        return brickSelGroupSelected;
+    }
+
+    public void setBrickSelGroupSelected(int brickSelGroupSelected) {
+        this.brickSelGroupSelected = brickSelGroupSelected;
+    }
+
+    private void initBottomMenu() {
+        brickSelGroup = new Array<>();
+        String[] imgPathArr = {
+                "img/brickRect.png", "img/brickCircle.png", "img/brickTri1.png",
+                "img/brickTri2.png", "img/brickTri3.png", "img/brickTri4.png"};
+        Color disColor = new Color(0xffffff80);
+        Color[] enColorArr = {
+                new Color(0x759f91ff), new Color(0xdb045bff), new Color(0xfa833dff),
+                new Color(0xfa833dff), new Color(0xfa833dff), new Color(0xfa833dff)};
+        final float w = toWorldDimension(136f);
+        final float g = (getWorldWith() - w * imgPathArr.length) / (imgPathArr.length + 1);
+
+        for (int i = 0; i < imgPathArr.length; i++) {
+            final SpriteSimpleButton ssb = new SpriteSimpleButton(
+                    game.getAssetManager().get(imgPathArr[i], Texture.class),
+                    viewport, game.getSpriteBatch(),
+                    g + (w + g) * i, toWorldDimension(game.getLocationYFromTop(1982f)));
+            ssb.setSize(toWorldSize(ssb.getSize()));
+            ssb.setSpriteOriginCenter();
+            ssb.setColor(i == 0 ? enColorArr[i] : disColor);
+            ssb.setIndex(i);
+            brickSelGroup.add(ssb);
+            renderables.add(ssb);
+            gestureDetectables.add(ssb);
+            ssb.setEventListenerTab(new GameGestureListener.TabEventListener() {
+                @Override
+                public void onEvent(float v, float v1, int i, int i1) {
+                    onTabBrickSelBtnGroup(ssb.getIndex());
+                }
+            });
+        }
+
+    }
+
+    private void initTopMenu() {
         initEditRunButton();
         initAddRemoveButton();
     }
 
+    private void checkShowRefLocBrick() {
+        boolean isModeEdit = editRunButton.getBtnToggleState() ==
+                             SpriteSimpleToggleButton.ButtonState.DEFAULT;
+        boolean isAddRemove = addRemoveButton.getBtnToggleState() ==
+                              SpriteSimpleToggleButton.ButtonState.DEFAULT;
+        if (isModeEdit) {
+            showBrickLocButtons();
+        } else {
+            hideBrickLocButtons();
+        }
+    }
+
     private void initEditRunButton() {
-        final SpriteSimpleToggleButton editRunButton =
+        editRunButton =
                 new SpriteSimpleToggleButton(
                         game.getAssetManager().get("img/modeEdit.png", Texture.class),
                         game.getAssetManager().get("img/modePlay.png", Texture.class),
@@ -246,9 +373,11 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         editRunButton.setSpriteOriginCenter();
 
         editRunButton.setBtnToggleState(SpriteSimpleToggleButton.ButtonState.DEFAULT);
+
         editRunButton.setEventListenerTab(new GameGestureListener.TabEventListener() {
             @Override
             public void onEvent(float v, float v1, int i, int i1) {
+                checkShowRefLocBrick();
                 if (editRunButton.getBtnToggleState() ==
                     SpriteSimpleToggleButton.ButtonState.DEFAULT) {
                     Gdx.app.log(tag, "Edit/Run Button : Tab = Default");
@@ -281,14 +410,17 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         addRemoveButton.setSpriteOriginCenter();
 
         addRemoveButton.setBtnToggleState(SpriteSimpleToggleButton.ButtonState.DEFAULT);
+        showBrickLocButtons();
+
         addRemoveButton.setEventListenerTab(new GameGestureListener.TabEventListener() {
             @Override
             public void onEvent(float v, float v1, int i, int i1) {
+                checkShowRefLocBrick();
                 if (addRemoveButton.getBtnToggleState() ==
                     SpriteSimpleToggleButton.ButtonState.DEFAULT) {
-                    Gdx.app.log(tag, "Add/Remove Button : Tab = Default");
+                    Gdx.app.log(tag, "Add/Remove Button : Tab = Default=Add");
                 } else {
-                    Gdx.app.log(tag, "Add/Remove Button : Tab = Toggle");
+                    Gdx.app.log(tag, "Add/Remove Button : Tab = Toggle=Remove");
                 }
             }
         });
@@ -427,7 +559,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
 
     }
 
-    private void createStaticBoxBody(Vector2 position, float hx, float hy) {
+    private Body createStaticBoxBody(Vector2 position, float hx, float hy) {
         BodyDef bodyDef = new BodyDef();
         bodyDef.position.set(position);
         Body body = world.createBody(bodyDef);
@@ -435,8 +567,129 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         polygonShape.setAsBox(hx, hy);
         body.createFixture(polygonShape, 0.0f);
         polygonShape.dispose();
+
+        return body;
     }
 
+    private Body createPolygonBody(BodyDef.BodyType bodyType, Vector2 pos, Vector2[] vertices,
+            FixtureDef fixtureDef) {
+        Body body;
+        BodyDef bodyDef = new BodyDef();
+        bodyDef.type = bodyType;
+        bodyDef.position.set(pos);
+        body = world.createBody(bodyDef);
+
+        PolygonShape polygonShape = new PolygonShape();
+        polygonShape.set(vertices);
+        fixtureDef.shape = polygonShape;
+        fixtureDef.density = bodyType == BodyDef.BodyType.StaticBody ? 0.0f : fixtureDef.density;
+        body.createFixture(fixtureDef);
+
+        polygonShape.dispose();
+
+        return body;
+    }
+
+    private Vector2 getCenterPosByRef(Point2DInt refPos) {
+        final float gap = toWorldDimension(16f);
+        final float wh = toWorldDimension(136f);
+        final float headerY = toWorldDimension(game.getLocationYFromTop(340f));
+        float centLocX, centLocY;
+
+        centLocX = (wh + gap) * (float) refPos.getX() + gap + wh / 2f;
+        centLocY = headerY - (wh + gap) * (float) (9 - refPos.getY()) + wh / 2f;
+
+        return new Vector2(centLocX, centLocY);
+    }
+
+    private void createBoxBrick(Vector2 centerPos) {
+        float half = toWorldDimension(136f / 2f);
+//        float brickLength = toWorldDimension(136f);
+//        Body body = createStaticBoxBody(centerPos, half, half);
+        Vector2[] vertices = {
+                new Vector2(-half, -half), new Vector2(half, -half),
+                new Vector2(half, half), new Vector2(-half, half)};
+        FixtureDef fixtureDef = new FixtureDef();
+        fixtureDef.density = 0f;
+        fixtureDef.friction = 0.4f;
+        fixtureDef.restitution = 0.8f;
+        Body body = createPolygonBody(BodyDef.BodyType.StaticBody, centerPos, vertices, fixtureDef);
+        SpriteGameObject sgoBrick =
+                new SpriteGameObject(game.getAssetManager().get("img/brickRect.png",
+                                                                Texture.class), 0, 0)
+                        .setSpriteBatch(game.getSpriteBatch());
+
+        sgoBrick.setSize(toWorldSize(sgoBrick.getSize()));
+        sgoBrick.setSpriteOriginCenter();
+        sgoBrick.setColor(new Color(0x759f91ff));
+        sgoBrick.setCenterLocation(centerPos.x, centerPos.y);
+        renderables.add(sgoBrick);
+        body.setUserData(sgoBrick);
+    }
+
+    private void createPolygonBrick(Vector2 centerPos, Vector2[] vertices, String texturePath,
+            Color color) {
+        FixtureDef fixtureDef = new FixtureDef();
+        fixtureDef.density = 0f;
+        fixtureDef.friction = 0.2f;
+        fixtureDef.restitution = 0f;
+        Body body = createPolygonBody(BodyDef.BodyType.StaticBody, centerPos, vertices, fixtureDef);
+        SpriteGameObject sgoBrick =
+                new SpriteGameObject(game.getAssetManager().get(texturePath,
+                                                                Texture.class), 0, 0)
+                        .setSpriteBatch(game.getSpriteBatch());
+
+        sgoBrick.setSize(toWorldSize(sgoBrick.getSize()));
+        sgoBrick.setSpriteOriginCenter();
+        sgoBrick.setColor(color);
+        sgoBrick.setCenterLocation(centerPos.x, centerPos.y);
+        renderables.add(sgoBrick);
+        body.setUserData(sgoBrick);
+    }
+
+    private void createCircleBrick(Vector2 centerPos) {
+
+    }
+
+
+    private void createBrick(Point2DInt refPos, BRICK brickKind) {
+        float half = toWorldDimension(136f / 2f);
+        Vector2[] vertices = {
+                new Vector2(-half, -half), new Vector2(half, -half),
+                new Vector2(half, half), new Vector2(-half, half)};
+        Vector2[] squreVertices = {vertices[0], vertices[1], vertices[2], vertices[3]};
+        Vector2[] tri1Vertices = {vertices[0], vertices[1], vertices[3]};
+        Vector2[] tri2Vertices = {vertices[1], vertices[2], vertices[3]};
+        Vector2[] tri3Vertices = {vertices[0], vertices[2], vertices[3]};
+        Vector2[] tri4Vertices = {vertices[0], vertices[1], vertices[2]};
+
+        switch (brickKind) {
+            case BOX:
+                createPolygonBrick(getCenterPosByRef(refPos), squreVertices, "img/brickRect.png",
+                                   new Color(0x759f91ff));
+                break;
+            case CIRCLE:
+                break;
+            case TRIANGLE1:
+                createPolygonBrick(getCenterPosByRef(refPos), tri1Vertices, "img/brickTri1.png",
+                                   new Color(0xfa833dff));
+                break;
+            case TRIANGLE2:
+                createPolygonBrick(getCenterPosByRef(refPos), tri2Vertices, "img/brickTri2.png",
+                                   new Color(0xfa833dff));
+                break;
+            case TRIANGLE3:
+                createPolygonBrick(getCenterPosByRef(refPos), tri3Vertices, "img/brickTri3.png",
+                                   new Color(0xfa833dff));
+                break;
+            case TRIANGLE4:
+                createPolygonBrick(getCenterPosByRef(refPos), tri4Vertices, "img/brickTri4.png",
+                                   new Color(0xfa833dff));
+                break;
+        }
+
+
+    }
 
     @Override
     public void onTimer1sec(float v, int i) {
@@ -646,5 +899,26 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     private Point2DFloat toWorldSize(Point2DFloat objSize) {
         return new Point2DFloat(objSize.getX() * getPhysicScreenRatio(),
                                 objSize.getY() * getPhysicScreenRatio());
+    }
+
+    private enum BRICK {
+        BOX, CIRCLE, TRIANGLE1, TRIANGLE2, TRIANGLE3, TRIANGLE4;
+        public static BRICK list[] = BRICK.values();
+
+        public static BRICK getValue(int index, BRICK defBrick) {
+            BRICK ret;
+            if ((index < 0) || (index > list.length - 1)) {//out of index error --> return default
+                Gdx.app.log(tag, "out of index, return default");
+                ret = defBrick;
+            } else {
+                ret = list[index];
+            }
+            return ret;
+        }
+
+        public static BRICK getValue(int index) {
+            return getValue(index, list[0]);
+        }
+
     }
 }

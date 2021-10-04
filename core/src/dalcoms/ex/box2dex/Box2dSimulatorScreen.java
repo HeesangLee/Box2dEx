@@ -18,8 +18,12 @@ import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.Box2D;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
 import com.badlogic.gdx.physics.box2d.CircleShape;
+import com.badlogic.gdx.physics.box2d.Contact;
+import com.badlogic.gdx.physics.box2d.ContactImpulse;
+import com.badlogic.gdx.physics.box2d.ContactListener;
 import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
+import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.PolygonShape;
 import com.badlogic.gdx.physics.box2d.Shape;
 import com.badlogic.gdx.physics.box2d.World;
@@ -36,6 +40,7 @@ import dalcoms.lib.libgdx.Renderable;
 import dalcoms.lib.libgdx.SpriteGameObject;
 import dalcoms.lib.libgdx.SpriteSimpleButton;
 import dalcoms.lib.libgdx.SpriteSimpleToggleButton;
+import dalcoms.lib.libgdx.VariationPerTime;
 import dalcoms.lib.libgdx.easingfunctions.EaseBounceOut;
 import dalcoms.lib.libgdx.easingfunctions.EaseCircOut;
 import dalcoms.lib.libgdx.easingfunctions.EaseElasticInOut;
@@ -43,7 +48,7 @@ import dalcoms.lib.libgdx.easingfunctions.EaseElasticInOut;
 
 class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     static final String tag = "Box2dSimulatorScreen";
-    static final boolean DEBUG_PHYSICS_RENDER = true;
+    static final boolean DEBUG_PHYSICS_RENDER = false;
     final Box2dExGame game;
     OrthographicCamera camera;
     Viewport viewport;
@@ -68,8 +73,16 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     private float worldWith, worldHeight, physicScreenRatio;
     Array<SpriteGameObject> upperWalls;
     Array<SpriteGameObject> bottomWalls;
+    boolean onShootingMode = false;
+    Vector2 initPointToShoot;
+    Array<SpriteGameObject> dirTouchDots;
+    Array<SpriteGameObject> dirDots;
+
+    Array<SpriteGameObject> bullets;
     SpriteSimpleToggleButton editRunButton, addRemoveButton;
     Array<SpriteSimpleButton> brickLocationButtons;
+    Array<SpriteSimpleButton> brickSelGroup;
+    private int brickSelGroupSelected = 0;
 
     public Box2dSimulatorScreen(final Box2dExGame game) {
         this.game = game;
@@ -181,6 +194,26 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     private void initPhysicsWorld(float gravityX, float gravityY) {
         Box2D.init();
         world = new World(new Vector2(gravityX, gravityY), true);
+        world.setContactListener(new ContactListener() {
+            @Override
+            public void beginContact(Contact contact) {
+            }
+
+            @Override
+            public void endContact(Contact contact) {
+
+            }
+
+            @Override
+            public void preSolve(Contact contact, Manifold oldManifold) {
+
+            }
+
+            @Override
+            public void postSolve(Contact contact, ContactImpulse impulse) {
+
+            }
+        });
         debugRenderer = new Box2DDebugRenderer();
 
     }
@@ -208,8 +241,15 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         initBrickLocationButtons(7, 9);
         initTopMenu();
         initBottomMenu();
+        initdirTouchDots(30);
+        initdirDots(30);
     }
 
+    private void initBullets(int count) {
+        for (int i = 0; i < count; i++) {
+
+        }
+    }
 
     private void showBrickLocButtons() {
         final float gap = toWorldDimension(16f);
@@ -282,8 +322,6 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         }
     }
 
-    Array<SpriteSimpleButton> brickSelGroup;
-    private int brickSelGroupSelected = 0;
 
     private void onTabBrickSelBtnGroup(int btnNum) {
         Gdx.app.log(tag, "onTabBrickSelBtnGroup : " + btnNum);
@@ -590,6 +628,25 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         return body;
     }
 
+    private Body createCircleBody(BodyDef.BodyType bodyType, Vector2 pos, float radius,
+            FixtureDef fixtureDef) {
+        Body body;
+        BodyDef bodyDef = new BodyDef();
+        bodyDef.type = bodyType;
+        bodyDef.position.set(pos);
+        body = world.createBody(bodyDef);
+
+        CircleShape circleShape = new CircleShape();
+        circleShape.setRadius(radius);
+        fixtureDef.shape = circleShape;
+        fixtureDef.density = bodyType == BodyDef.BodyType.StaticBody ? 0.0f : fixtureDef.density;
+        body.createFixture(fixtureDef);
+
+        circleShape.dispose();
+
+        return body;
+    }
+
     private Vector2 getCenterPosByRef(Point2DInt refPos) {
         final float gap = toWorldDimension(16f);
         final float wh = toWorldDimension(136f);
@@ -634,21 +691,46 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         fixtureDef.friction = 0.2f;
         fixtureDef.restitution = 0f;
         Body body = createPolygonBody(BodyDef.BodyType.StaticBody, centerPos, vertices, fixtureDef);
-        SpriteGameObject sgoBrick =
+
+        body.setUserData(setBasicSpriteGameObject(centerPos, texturePath, color));
+    }
+
+
+    private void createCircleBullet(Vector2 centerPos, float radius, String texturePath,
+            Color color) {
+        FixtureDef fixtureDef = new FixtureDef();
+        fixtureDef.density = 1f;
+        fixtureDef.friction = 0.2f;
+        fixtureDef.restitution = 1f;
+        Body body = createCircleBody(BodyDef.BodyType.DynamicBody, centerPos, radius, fixtureDef);
+
+        body.setUserData(setBasicSpriteGameObject(centerPos, texturePath, color));
+    }
+
+    private void createCircleBrick(Vector2 centerPos, float radius, String texturePath,
+            Color color) {
+        FixtureDef fixtureDef = new FixtureDef();
+        fixtureDef.density = 0f;
+        fixtureDef.friction = 0.2f;
+        fixtureDef.restitution = 0f;
+        Body body = createCircleBody(BodyDef.BodyType.StaticBody, centerPos, radius, fixtureDef);
+
+        body.setUserData(setBasicSpriteGameObject(centerPos, texturePath, color));
+    }
+
+    private SpriteGameObject setBasicSpriteGameObject(Vector2 centerPos, String texturePath,
+            Color color) {
+        SpriteGameObject sgo =
                 new SpriteGameObject(game.getAssetManager().get(texturePath,
                                                                 Texture.class), 0, 0)
                         .setSpriteBatch(game.getSpriteBatch());
 
-        sgoBrick.setSize(toWorldSize(sgoBrick.getSize()));
-        sgoBrick.setSpriteOriginCenter();
-        sgoBrick.setColor(color);
-        sgoBrick.setCenterLocation(centerPos.x, centerPos.y);
-        renderables.add(sgoBrick);
-        body.setUserData(sgoBrick);
-    }
-
-    private void createCircleBrick(Vector2 centerPos) {
-
+        sgo.setSize(toWorldSize(sgo.getSize()));
+        sgo.setSpriteOriginCenter();
+        sgo.setColor(color);
+        sgo.setCenterLocation(centerPos.x, centerPos.y);
+        renderables.add(sgo);
+        return sgo;
     }
 
 
@@ -669,6 +751,8 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
                                    new Color(0x759f91ff));
                 break;
             case CIRCLE:
+                createCircleBrick(getCenterPosByRef(refPos), half, "img/brickCircle.png",
+                                  new Color(0xdb045bff));
                 break;
             case TRIANGLE1:
                 createPolygonBrick(getCenterPosByRef(refPos), tri1Vertices, "img/brickTri1.png",
@@ -737,6 +821,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
             @Override
             public boolean touchDown(float x, float y, int pointer, int button) {
                 Vector2 newTouchPoint = getNewTouchPoint(x, y);
+                checkToShoot(TOUCH_EVENT.DOWN, newTouchPoint);
                 for (IGestureInput iGestureInput : isGestureDetectTop() ? gestureDetectablesTop :
                         gestureDetectables) {
                     iGestureInput.touchDown(newTouchPoint.x, newTouchPoint.y, pointer, button);
@@ -819,12 +904,14 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
 
             @Override
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+
                 return false;
             }
 
             @Override
             public boolean touchUp(int screenX, int screenY, int pointer, int button) {
                 Vector2 newTouchPoint = getNewTouchPoint(screenX, screenY);
+                checkToShoot(TOUCH_EVENT.UP, newTouchPoint);
                 for (IGestureInput iGestureInput : isGestureDetectTop() ? gestureDetectablesTop :
                         gestureDetectables) {
                     iGestureInput
@@ -836,6 +923,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
             @Override
             public boolean touchDragged(int screenX, int screenY, int pointer) {
                 Vector2 newTouchPoint = getNewTouchPoint(screenX, screenY);
+                checkToShoot(TOUCH_EVENT.DRAGGED, newTouchPoint);
                 for (IGestureInput iGestureInput : isGestureDetectTop() ? gestureDetectablesTop :
                         gestureDetectables) {
                     iGestureInput
@@ -857,6 +945,126 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         });
 
         Gdx.input.setInputProcessor(inputMultiplexer);
+    }
+
+
+    private void initdirTouchDots(int count) {
+        dirTouchDots = new Array<>();
+        for (int i = 0; i < count; i++) {
+            SpriteGameObject sgoDot =
+                    new SpriteGameObject(game.getAssetManager().get("img/circle_8px.png",
+                                                                    Texture.class), -10, -10)
+                            .setSpriteBatch(game.getSpriteBatch());
+
+            sgoDot.setSize(toWorldSize(sgoDot.getSize()));
+            sgoDot.setSpriteOriginCenter();
+            sgoDot.setColor(new Color(0x00ffffff));
+            sgoDot.setVisible(false);
+            dirTouchDots.add(sgoDot);
+            renderables.add(sgoDot);
+        }
+    }
+
+    private void initdirDots(int count) {
+        dirTouchDots = new Array<>();
+        for (int i = 0; i < count; i++) {
+            SpriteGameObject sgoDot =
+                    new SpriteGameObject(game.getAssetManager().get("img/circle_8px.png",
+                                                                    Texture.class), -10, -10)
+                            .setSpriteBatch(game.getSpriteBatch());
+
+            sgoDot.setSize(toWorldSize(sgoDot.getSize()));
+            sgoDot.setSpriteOriginCenter();
+            sgoDot.setColor(new Color(0xffcc00ff));
+            sgoDot.setVisible(false);
+            dirDots.add(sgoDot);
+            renderables.add(sgoDot);
+        }
+    }
+
+    private void hidedirTouchDots() {
+        for (final SpriteGameObject sgoDot : dirTouchDots) {
+            if (sgoDot.isVisible()) {
+                sgoDot.move(dirTouchDots.get(dirTouchDots.size - 1).getLocationX(),
+                            dirTouchDots.get(dirTouchDots.size - 1).getLocationY(), 0.2f);
+                sgoDot.setEventListenerMoveX(new VariationPerTime.EventListener() {
+                    @Override
+                    public void onUpdate(float v, float v1) {
+
+                    }
+
+                    @Override
+                    public void onStart(float v) {
+
+                    }
+
+                    @Override
+                    public void onFinish(float v, float v1) {
+                        sgoDot.setVisible(false);
+                    }
+                });
+            }
+        }
+    }
+
+    private void arrangedirTouchDots(Vector2 touchPoint) {
+        float len = touchPoint.dst(initPointToShoot);
+        float lenGap = 0.017f * len + toWorldDimension(40);
+        double ang = Math.atan2(
+                (touchPoint.y - initPointToShoot.y), (touchPoint.x - initPointToShoot.x));
+
+        SpriteGameObject sgoDirDot;
+        float lenToTouch;
+        float cosAng = (float) Math.cos(ang);
+        float sinAng = (float) Math.sin(ang);
+        int lastShowIndex = 0;
+
+        for (int i = 0; i < dirTouchDots.size; i++) {
+            sgoDirDot = dirTouchDots.get(i);
+            lenToTouch = lenGap * i;
+
+            if (lenToTouch < len) {
+                sgoDirDot.setCenterLocation(initPointToShoot.x + lenToTouch * cosAng,
+                                            initPointToShoot.y + lenToTouch * sinAng);
+                sgoDirDot.setVisible(true);
+                lastShowIndex = i;
+            } else {
+
+                sgoDirDot.setCenterLocation(dirTouchDots.get(lastShowIndex).getLocationX(),
+                                            dirTouchDots.get(lastShowIndex).getLocationY());
+                sgoDirDot.setVisible(false);
+            }
+        }
+    }
+
+    private void checkToShoot(TOUCH_EVENT touchEvent, Vector2 touchPoint) {
+        if (editRunButton.getBtnToggleState() == SpriteSimpleToggleButton.ButtonState.DEFAULT) {
+            return;
+        }//return
+        Gdx.app.log(tag, "Touch test" + touchEvent.name() + " : x=" + touchPoint.x + ", y=" +
+                         touchPoint.y);
+        switch (touchEvent) {
+            case DOWN://init
+                onShootingMode = true;
+                initPointToShoot = touchPoint;
+                Gdx.app.log(tag,
+                            "toShoot : InitPoint(" + initPointToShoot.x + "," + initPointToShoot.y +
+                            ")");
+                break;
+            case DRAGGED://calculate
+//                double ang = Math.toDegrees(Math.atan(
+//                        (touchPoint.y - initPointToShoot.y) / (touchPoint.x - initPointToShoot.x)));
+//                ang = ang < 0 ? 360 - ang : ang;
+//                Gdx.app.log(tag, "toShoot : New point(" + touchPoint.x + "," + touchPoint.y + ")");
+//                Gdx.app.log(tag, "toShoot : d=" + touchPoint.dst(initPointToShoot) + ", ang=" +
+//                                 ang);
+                arrangedirTouchDots(touchPoint);
+                break;
+            case UP://shooting
+                onShootingMode = false;
+                hidedirTouchDots();
+                break;
+        }
     }
 
     public float getWorldWith() {
@@ -920,5 +1128,9 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
             return getValue(index, list[0]);
         }
 
+    }
+
+    private enum TOUCH_EVENT {
+        DOWN, UP, DRAGGED;
     }
 }

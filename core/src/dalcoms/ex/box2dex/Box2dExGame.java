@@ -86,19 +86,20 @@ public class Box2dExGame extends Game {
         assetManager.load("img/circle_100px.png", Texture.class, para);
         assetManager.load("img/rect_16x62.png", Texture.class, para);
 
-        assetManager.load("img/brickCircle.png",Texture.class,para);
-        assetManager.load("img/brickRect.png",Texture.class,para);
-        assetManager.load("img/brickTri1.png",Texture.class,para);
-        assetManager.load("img/brickTri2.png",Texture.class,para);
-        assetManager.load("img/brickTri3.png",Texture.class,para);
-        assetManager.load("img/brickTri4.png",Texture.class,para);
-        assetManager.load("img/btnAddPos.png",Texture.class,para);
-        assetManager.load("img/circleLine_100px.png",Texture.class,para);
-        assetManager.load("img/circle_52px.png",Texture.class,para);
-        assetManager.load("img/editAdd.png",Texture.class,para);
-        assetManager.load("img/editDelete.png",Texture.class,para);
-        assetManager.load("img/modeEdit.png",Texture.class,para);
-        assetManager.load("img/modePlay.png",Texture.class,para);
+        assetManager.load("img/brickCircle.png", Texture.class, para);
+        assetManager.load("img/brickRect.png", Texture.class, para);
+        assetManager.load("img/brickTri1.png", Texture.class, para);
+        assetManager.load("img/brickTri2.png", Texture.class, para);
+        assetManager.load("img/brickTri3.png", Texture.class, para);
+        assetManager.load("img/brickTri4.png", Texture.class, para);
+        assetManager.load("img/btnAddPos.png", Texture.class, para);
+        assetManager.load("img/circleLine_100px.png", Texture.class, para);
+        assetManager.load("img/circle_52px.png", Texture.class, para);
+        assetManager.load("img/circle_8px.png", Texture.class, para);
+        assetManager.load("img/editAdd.png", Texture.class, para);
+        assetManager.load("img/editDelete.png", Texture.class, para);
+        assetManager.load("img/modeEdit.png", Texture.class, para);
+        assetManager.load("img/modePlay.png", Texture.class, para);
 
     }
 

@@ -244,7 +244,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         initBottomMenu();
         initDirTouchDots(30);
         initDirDots(36);
-        initBullets(10);
+        initBullets(900);
     }
 
     private void initBullets(int count) {
@@ -254,9 +254,10 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         float yCenter =
                 (bottomWalls.get(0).getLocationY() + bottomWalls.get(0).getHeight()) + radiusBullet;
         for (int i = 0; i < count; i++) {
-            createCircleBullet(new Vector2(getWorldWith() / 2f + 0*radiusBullet * 2f * i, yCenter),
-                               radiusBullet,
-                               "img/circle_52px.png", new Color(0xfbe5b3ff));
+            createCircleBullet(
+                    new Vector2(getWorldWith() / 2f + 0 * radiusBullet * 2f * i, yCenter),
+                    radiusBullet,
+                    "img/circle_52px.png", new Color(0xfbe5b3ff));
         }
     }
 
@@ -619,7 +620,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     }
 
     private Body createPolygonBody(BodyDef.BodyType bodyType, Vector2 pos, Vector2[] vertices,
-                                   FixtureDef fixtureDef) {
+            FixtureDef fixtureDef) {
         Body body;
         BodyDef bodyDef = new BodyDef();
         bodyDef.type = bodyType;
@@ -638,7 +639,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     }
 
     private Body createCircleBody(BodyDef.BodyType bodyType, Vector2 pos, float radius,
-                                  FixtureDef fixtureDef) {
+            FixtureDef fixtureDef) {
         Body body;
         BodyDef bodyDef = new BodyDef();
         bodyDef.type = bodyType;
@@ -694,7 +695,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     }
 
     private void createPolygonBrick(Vector2 centerPos, Vector2[] vertices, String texturePath,
-                                    Color color) {
+            Color color) {
         FixtureDef fixtureDef = new FixtureDef();
         fixtureDef.density = 0f;
         fixtureDef.friction = 0.2f;
@@ -706,7 +707,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
 
 
     private void createCircleBullet(Vector2 centerPos, float radius, String texturePath,
-                                    Color color) {
+            Color color) {
         FixtureDef fixtureDef = new FixtureDef();
         fixtureDef.density = 1f;
         fixtureDef.friction = 0.0f;
@@ -720,7 +721,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     }
 
     private void createCircleBrick(Vector2 centerPos, float radius, String texturePath,
-                                   Color color) {
+            Color color) {
         FixtureDef fixtureDef = new FixtureDef();
         fixtureDef.density = 0f;
         fixtureDef.friction = 0.2f;
@@ -731,7 +732,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     }
 
     private SpriteGameObject setBasicSpriteGameObject(Vector2 centerPos, String texturePath,
-                                                      Color color) {
+            Color color) {
         SpriteGameObject sgo =
                 new SpriteGameObject(game.getAssetManager().get(texturePath,
                                                                 Texture.class), 0, 0)
@@ -1004,14 +1005,15 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         for (final Body bullet : bullets) {
 
             Timer.schedule(new Timer.Task() {
-                @Override public void run() {
+                @Override
+                public void run() {
                     Gdx.app.log(tag, "shooting");
                     bullet.applyLinearImpulse(new Vector2(forceX, forceY),
                                               new Vector2(bullet.getPosition().x,
                                                           bullet.getPosition().y),
                                               true);
                 }
-            },0.5f*i);
+            }, 0.1f * i);
             Gdx.app.log(tag, "shooting : " + i);
             i++;
         }
@@ -1100,28 +1102,40 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         }
     }
 
+    private boolean isEditMode() {
+        return editRunButton.getBtnToggleState() == SpriteSimpleToggleButton.ButtonState.DEFAULT;
+    }
+
+    private boolean isOnGameArea(Vector2 touchPoint) {
+        float topY = upperWalls.get(0).getLocationY();
+        float bottomY = bottomWalls.get(0).getLocationY() + bottomWalls.get(0).getHeight();
+
+        return touchPoint.y < topY && touchPoint.y > bottomY;
+    }
+
     private void checkToShoot(TOUCH_EVENT touchEvent, Vector2 touchPoint) {
-        if (editRunButton.getBtnToggleState() == SpriteSimpleToggleButton.ButtonState.DEFAULT) {
+        if (isEditMode()) {
             return;
         }//return
         Gdx.app.log(tag, "Touch test" + touchEvent.name() + " : x=" + touchPoint.x + ", y=" +
                          touchPoint.y);
         switch (touchEvent) {
             case DOWN://init
-                onShootingMode = true;
-                initPointToShoot = touchPoint;
-                Gdx.app.log(tag,
-                            "toShoot : InitPoint(" + initPointToShoot.x + "," + initPointToShoot.y +
-                            ")");
+                if (isOnGameArea(touchPoint)) {
+                    onShootingMode = true;
+                    initPointToShoot = touchPoint;
+                    Gdx.app.log(tag,
+                                "toShoot : InitPoint(" + initPointToShoot.x + "," +
+                                initPointToShoot.y +
+                                ")");
+                }
+
                 break;
             case DRAGGED://calculate
-//                double ang = Math.toDegrees(Math.atan(
-//                        (touchPoint.y - initPointToShoot.y) / (touchPoint.x - initPointToShoot.x)));
-//                ang = ang < 0 ? 360 - ang : ang;
-//                Gdx.app.log(tag, "toShoot : New point(" + touchPoint.x + "," + touchPoint.y + ")");
-//                Gdx.app.log(tag, "toShoot : d=" + touchPoint.dst(initPointToShoot) + ", ang=" +
-//                                 ang);
-                arrangeDirTouchDots(touchPoint);
+                if (onShootingMode) {
+                    arrangeDirTouchDots(touchPoint);
+                }
+
                 break;
             case UP://shooting
 

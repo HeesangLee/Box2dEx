@@ -254,7 +254,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         float yCenter =
                 (bottomWalls.get(0).getLocationY() + bottomWalls.get(0).getHeight()) + radiusBullet;
         for (int i = 0; i < count; i++) {
-            createCircleBullet(new Vector2(getWorldWith() / 2f + radiusBullet * 2f * i, yCenter),
+            createCircleBullet(new Vector2(getWorldWith() / 2f + 0*radiusBullet * 2f * i, yCenter),
                                radiusBullet,
                                "img/circle_52px.png", new Color(0xfbe5b3ff));
         }
@@ -709,7 +709,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
                                     Color color) {
         FixtureDef fixtureDef = new FixtureDef();
         fixtureDef.density = 1f;
-        fixtureDef.friction = 0.2f;
+        fixtureDef.friction = 0.0f;
         fixtureDef.restitution = 1f;
         fixtureDef.filter.groupIndex = -1;
         Body body = createCircleBody(BodyDef.BodyType.DynamicBody, centerPos, radius, fixtureDef);
@@ -995,58 +995,26 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     }
 
     private void fireBullet() {
-        float forceScalar = 1f;
+        float forceScalar = 5f;
         final float forceX = forceScalar * (float) Math.cos(getShootingAngle());
         final float forceY = forceScalar * (float) Math.sin(getShootingAngle());
         Gdx.app.log(tag, "Fire ball : fx=" + forceX + ",fy=" + forceY);
-//        int i = 0;
+        int i = 0;
 
-//        bullets.get(0).applyLinearImpulse(new Vector2(forceX, forceY),
-//                                          new Vector2(bullets.get(0).getPosition().x,
-//                                                      bullets.get(0).getPosition().y),
-//                                          true);
+        for (final Body bullet : bullets) {
 
-        for (int i = 0; i < bullets.size; i++) {
-            final int index = i;
-            new Timer().scheduleTask(new Timer.Task() {
+            Timer.schedule(new Timer.Task() {
                 @Override public void run() {
-                    Gdx.app.postRunnable(new Runnable() {
-                        @Override public void run() {
-                            Gdx.app.log(tag, "shooting"+index);
-                            bullets.get(index).applyLinearImpulse(new Vector2(forceX, forceY),
-                                                                  new Vector2(bullets.get(index)
-                                                                                     .getPosition().x,
-                                                                              bullets.get(index)
-                                                                                     .getPosition().y),
-                                                                  true);
-                        }
-                    });
+                    Gdx.app.log(tag, "shooting");
+                    bullet.applyLinearImpulse(new Vector2(forceX, forceY),
+                                              new Vector2(bullet.getPosition().x,
+                                                          bullet.getPosition().y),
+                                              true);
                 }
-            }, 0.5f * index).run();
+            },0.5f*i);
+            Gdx.app.log(tag, "shooting : " + i);
+            i++;
         }
-
-//        for (final Body bullet : bullets) {
-////            bullet.applyForceToCenter(new Vector2(forceX, forceY), true);
-////            bullet.applyLinearImpulse(new Vector2(forceX, forceY),
-////                                      new Vector2(bullet.getPosition().x, bullet.getPosition().y),
-////                                      true);
-//
-//            new Timer().scheduleTask(new Timer.Task() {
-//                @Override public void run() {
-//                    Gdx.app.postRunnable(new Runnable() {
-//                        @Override public void run() {
-//                            Gdx.app.log(tag, "shooting");
-//                            bullet.applyLinearImpulse(new Vector2(forceX, forceY),
-//                                                      new Vector2(bullet.getPosition().x,
-//                                                                  bullet.getPosition().y),
-//                                                      true);
-//                        }
-//                    });
-//                }
-//            }, 0.5f * i).run();
-//            Gdx.app.log(tag, "shooting : " + i);
-//            i++;
-//        }
     }
 
     private void hidedirTouchDots() {

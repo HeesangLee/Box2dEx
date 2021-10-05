@@ -25,9 +25,9 @@ import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
 import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.PolygonShape;
-import com.badlogic.gdx.physics.box2d.Shape;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
@@ -43,7 +43,6 @@ import dalcoms.lib.libgdx.SpriteSimpleToggleButton;
 import dalcoms.lib.libgdx.VariationPerTime;
 import dalcoms.lib.libgdx.easingfunctions.EaseBounceOut;
 import dalcoms.lib.libgdx.easingfunctions.EaseCircOut;
-import dalcoms.lib.libgdx.easingfunctions.EaseElasticInOut;
 
 
 class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
@@ -255,7 +254,8 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         float yCenter =
                 (bottomWalls.get(0).getLocationY() + bottomWalls.get(0).getHeight()) + radiusBullet;
         for (int i = 0; i < count; i++) {
-            createCircleBullet(new Vector2(getWorldWith() / 2f, yCenter), radiusBullet,
+            createCircleBullet(new Vector2(getWorldWith() / 2f + radiusBullet * 2f * i, yCenter),
+                               radiusBullet,
                                "img/circle_52px.png", new Color(0xfbe5b3ff));
         }
     }
@@ -619,7 +619,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     }
 
     private Body createPolygonBody(BodyDef.BodyType bodyType, Vector2 pos, Vector2[] vertices,
-            FixtureDef fixtureDef) {
+                                   FixtureDef fixtureDef) {
         Body body;
         BodyDef bodyDef = new BodyDef();
         bodyDef.type = bodyType;
@@ -638,7 +638,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     }
 
     private Body createCircleBody(BodyDef.BodyType bodyType, Vector2 pos, float radius,
-            FixtureDef fixtureDef) {
+                                  FixtureDef fixtureDef) {
         Body body;
         BodyDef bodyDef = new BodyDef();
         bodyDef.type = bodyType;
@@ -694,7 +694,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     }
 
     private void createPolygonBrick(Vector2 centerPos, Vector2[] vertices, String texturePath,
-            Color color) {
+                                    Color color) {
         FixtureDef fixtureDef = new FixtureDef();
         fixtureDef.density = 0f;
         fixtureDef.friction = 0.2f;
@@ -706,11 +706,12 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
 
 
     private void createCircleBullet(Vector2 centerPos, float radius, String texturePath,
-            Color color) {
+                                    Color color) {
         FixtureDef fixtureDef = new FixtureDef();
         fixtureDef.density = 1f;
         fixtureDef.friction = 0.2f;
         fixtureDef.restitution = 1f;
+        fixtureDef.filter.groupIndex = -1;
         Body body = createCircleBody(BodyDef.BodyType.DynamicBody, centerPos, radius, fixtureDef);
         body.setBullet(true);
 
@@ -719,7 +720,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     }
 
     private void createCircleBrick(Vector2 centerPos, float radius, String texturePath,
-            Color color) {
+                                   Color color) {
         FixtureDef fixtureDef = new FixtureDef();
         fixtureDef.density = 0f;
         fixtureDef.friction = 0.2f;
@@ -730,7 +731,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     }
 
     private SpriteGameObject setBasicSpriteGameObject(Vector2 centerPos, String texturePath,
-            Color color) {
+                                                      Color color) {
         SpriteGameObject sgo =
                 new SpriteGameObject(game.getAssetManager().get(texturePath,
                                                                 Texture.class), 0, 0)
@@ -994,14 +995,58 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     }
 
     private void fireBullet() {
-        float forceX = 100f * (float) Math.cos(getShootingAngle());
-        float forceY = 100f * (float) Math.sin(getShootingAngle());
-        for (Body bullet : bullets) {
-//            bullet.applyForceToCenter(new Vector2(forceX, forceY), true);
-            bullet.applyLinearImpulse(new Vector2(forceX, forceY),
-                                      new Vector2(bullet.getPosition().x, bullet.getPosition().y),
-                                      false);
+        float forceScalar = 1f;
+        final float forceX = forceScalar * (float) Math.cos(getShootingAngle());
+        final float forceY = forceScalar * (float) Math.sin(getShootingAngle());
+        Gdx.app.log(tag, "Fire ball : fx=" + forceX + ",fy=" + forceY);
+//        int i = 0;
+
+//        bullets.get(0).applyLinearImpulse(new Vector2(forceX, forceY),
+//                                          new Vector2(bullets.get(0).getPosition().x,
+//                                                      bullets.get(0).getPosition().y),
+//                                          true);
+
+        for (int i = 0; i < bullets.size; i++) {
+            final int index = i;
+            new Timer().scheduleTask(new Timer.Task() {
+                @Override public void run() {
+                    Gdx.app.postRunnable(new Runnable() {
+                        @Override public void run() {
+                            Gdx.app.log(tag, "shooting"+index);
+                            bullets.get(index).applyLinearImpulse(new Vector2(forceX, forceY),
+                                                                  new Vector2(bullets.get(index)
+                                                                                     .getPosition().x,
+                                                                              bullets.get(index)
+                                                                                     .getPosition().y),
+                                                                  true);
+                        }
+                    });
+                }
+            }, 0.5f * index).run();
         }
+
+//        for (final Body bullet : bullets) {
+////            bullet.applyForceToCenter(new Vector2(forceX, forceY), true);
+////            bullet.applyLinearImpulse(new Vector2(forceX, forceY),
+////                                      new Vector2(bullet.getPosition().x, bullet.getPosition().y),
+////                                      true);
+//
+//            new Timer().scheduleTask(new Timer.Task() {
+//                @Override public void run() {
+//                    Gdx.app.postRunnable(new Runnable() {
+//                        @Override public void run() {
+//                            Gdx.app.log(tag, "shooting");
+//                            bullet.applyLinearImpulse(new Vector2(forceX, forceY),
+//                                                      new Vector2(bullet.getPosition().x,
+//                                                                  bullet.getPosition().y),
+//                                                      true);
+//                        }
+//                    });
+//                }
+//            }, 0.5f * i).run();
+//            Gdx.app.log(tag, "shooting : " + i);
+//            i++;
+//        }
     }
 
     private void hidedirTouchDots() {

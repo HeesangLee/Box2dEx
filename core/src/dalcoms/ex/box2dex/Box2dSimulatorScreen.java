@@ -198,6 +198,43 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         world.setContactListener(new ContactListener() {
             @Override
             public void beginContact(Contact contact) {
+                Fixture fa = contact.getFixtureA();
+                Fixture fb = contact.getFixtureB();
+                boolean isFaValid = false;
+                boolean isFbValid = false;
+                SpriteGameObject sgoFa = null, sgoFb = null;
+
+                if (fa.getBody().getUserData() != null) {
+                    sgoFa = (SpriteGameObject) fa.getBody().getUserData();
+                    isFaValid = true;
+                    if (fb.getBody().getUserData() != null) {
+                        sgoFb = (SpriteGameObject) fb.getBody().getUserData();
+                        isFbValid = true;
+                    }
+                }
+                if (isFaValid & isFbValid) {
+                    if ((sgoFa.getIndex() >= 0) && (sgoFb.getIndex() == -1)) {//brick-bullet
+                        sgoFa.setIndexA(sgoFa.getIndexA() - 1);
+                        Gdx.app.log(tag, "Box2d contact begin : " +
+                                         BRICK.getValue(sgoFa.getIndex()).toString() + " : " +
+                                         sgoFa.getIndexA());
+                        if(sgoFa.getIndexA()==0){
+                            renderables.removeValue(sgoFa,false);
+//                            world.destroyBody(fa.getBody());
+
+                        }
+                    }else if((sgoFa.getIndex() ==-1) && (sgoFb.getIndex() >= 0)){//bullet-brick
+                        sgoFb.setIndexA(sgoFb.getIndexA() - 1);
+                        Gdx.app.log(tag, "Box2d contact begin : " +
+                                         BRICK.getValue(sgoFb.getIndex()).toString() + " : " +
+                                         sgoFb.getIndexA());
+                        if(sgoFb.getIndexA()==0){
+                            renderables.removeValue(sgoFb,false);
+//                            world.destroyBody(fb.getBody());
+
+                        }
+                    }
+                }
             }
 
             @Override
@@ -695,14 +732,15 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     }
 
     private void createPolygonBrick(Vector2 centerPos, Vector2[] vertices, String texturePath,
-            Color color) {
+            Color color, int brickIndex, int count) {
         FixtureDef fixtureDef = new FixtureDef();
         fixtureDef.density = 0f;
         fixtureDef.friction = 0.2f;
         fixtureDef.restitution = 0f;
         Body body = createPolygonBody(BodyDef.BodyType.StaticBody, centerPos, vertices, fixtureDef);
 
-        body.setUserData(setBasicSpriteGameObject(centerPos, texturePath, color));
+        body.setUserData(
+                setBasicSpriteGameObject(centerPos, texturePath, color, brickIndex, count));
     }
 
 
@@ -716,19 +754,20 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         Body body = createCircleBody(BodyDef.BodyType.DynamicBody, centerPos, radius, fixtureDef);
         body.setBullet(true);
 
-        body.setUserData(setBasicSpriteGameObject(centerPos, texturePath, color));
+        body.setUserData(setBasicSpriteGameObject(centerPos, texturePath, color, -1, 0));
         bullets.add(body);
     }
 
     private void createCircleBrick(Vector2 centerPos, float radius, String texturePath,
-            Color color) {
+            Color color, int brickIndex, int count) {
         FixtureDef fixtureDef = new FixtureDef();
         fixtureDef.density = 0f;
         fixtureDef.friction = 0.2f;
         fixtureDef.restitution = 0f;
         Body body = createCircleBody(BodyDef.BodyType.StaticBody, centerPos, radius, fixtureDef);
 
-        body.setUserData(setBasicSpriteGameObject(centerPos, texturePath, color));
+        body.setUserData(
+                setBasicSpriteGameObject(centerPos, texturePath, color, brickIndex, count));
     }
 
     private SpriteGameObject setBasicSpriteGameObject(Vector2 centerPos, String texturePath,
@@ -746,6 +785,15 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         return sgo;
     }
 
+    private SpriteGameObject setBasicSpriteGameObject(Vector2 centerPos, String texturePath,
+            Color color, int brickIndex, int count) {
+        SpriteGameObject sgo = setBasicSpriteGameObject(centerPos, texturePath, color);
+
+        sgo.setIndex(brickIndex);
+        sgo.setIndexA(count);
+        return sgo;
+    }
+
 
     private void createBrick(Point2DInt refPos, BRICK brickKind) {
         float half = toWorldDimension(136f / 2f);
@@ -758,30 +806,32 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         Vector2[] tri3Vertices = {vertices[0], vertices[2], vertices[3]};
         Vector2[] tri4Vertices = {vertices[0], vertices[1], vertices[2]};
 
+        final int count = 50;
+
         switch (brickKind) {
             case BOX:
                 createPolygonBrick(getCenterPosByRef(refPos), squreVertices, "img/brickRect.png",
-                                   new Color(0x759f91ff));
+                                   new Color(0x759f91ff), 0, count);
                 break;
             case CIRCLE:
                 createCircleBrick(getCenterPosByRef(refPos), half, "img/brickCircle.png",
-                                  new Color(0xdb045bff));
+                                  new Color(0xdb045bff), 1, count);
                 break;
             case TRIANGLE1:
                 createPolygonBrick(getCenterPosByRef(refPos), tri1Vertices, "img/brickTri1.png",
-                                   new Color(0xfa833dff));
+                                   new Color(0xfa833dff), 2, count);
                 break;
             case TRIANGLE2:
                 createPolygonBrick(getCenterPosByRef(refPos), tri2Vertices, "img/brickTri2.png",
-                                   new Color(0xfa833dff));
+                                   new Color(0xfa833dff), 3, count);
                 break;
             case TRIANGLE3:
                 createPolygonBrick(getCenterPosByRef(refPos), tri3Vertices, "img/brickTri3.png",
-                                   new Color(0xfa833dff));
+                                   new Color(0xfa833dff), 4, count);
                 break;
             case TRIANGLE4:
                 createPolygonBrick(getCenterPosByRef(refPos), tri4Vertices, "img/brickTri4.png",
-                                   new Color(0xfa833dff));
+                                   new Color(0xfa833dff), 5, count);
                 break;
         }
 

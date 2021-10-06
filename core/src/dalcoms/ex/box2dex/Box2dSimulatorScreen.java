@@ -244,7 +244,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         initBottomMenu();
         initDirTouchDots(30);
         initDirDots(36);
-        initBullets(900);
+        initBullets(10);
     }
 
     private void initBullets(int count) {

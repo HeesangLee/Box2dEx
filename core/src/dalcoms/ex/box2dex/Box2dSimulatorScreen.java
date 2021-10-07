@@ -198,8 +198,8 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         world.setContactListener(new ContactListener() {
             @Override
             public void beginContact(Contact contact) {
-                Fixture fa = contact.getFixtureA();
-                Fixture fb = contact.getFixtureB();
+                final Fixture fa = contact.getFixtureA();
+                final Fixture fb = contact.getFixtureB();
                 boolean isFaValid = false;
                 boolean isFbValid = false;
                 SpriteGameObject sgoFa = null, sgoFb = null;
@@ -218,18 +218,28 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
                         Gdx.app.log(tag, "Box2d contact begin : " +
                                          BRICK.getValue(sgoFa.getIndex()).toString() + " : " +
                                          sgoFa.getIndexA());
-                        if(sgoFa.getIndexA()==0){
-                            renderables.removeValue(sgoFa,false);
+                        if (sgoFa.getIndexA() == 0) {
+                            renderables.removeValue(sgoFa, false);
 //                            world.destroyBody(fa.getBody());
-
+                            new Thread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Gdx.app.postRunnable(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            world.destroyBody(fa.getBody());
+                                        }
+                                    });
+                                }
+                            }).start();
                         }
-                    }else if((sgoFa.getIndex() ==-1) && (sgoFb.getIndex() >= 0)){//bullet-brick
+                    } else if ((sgoFa.getIndex() == -1) && (sgoFb.getIndex() >= 0)) {//bullet-brick
                         sgoFb.setIndexA(sgoFb.getIndexA() - 1);
                         Gdx.app.log(tag, "Box2d contact begin : " +
                                          BRICK.getValue(sgoFb.getIndex()).toString() + " : " +
                                          sgoFb.getIndexA());
-                        if(sgoFb.getIndexA()==0){
-                            renderables.removeValue(sgoFb,false);
+                        if (sgoFb.getIndexA() == 0) {
+                            renderables.removeValue(sgoFb, false);
 //                            world.destroyBody(fb.getBody());
 
                         }

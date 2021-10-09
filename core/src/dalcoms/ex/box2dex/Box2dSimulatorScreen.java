@@ -83,6 +83,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
     Array<SpriteSimpleButton> brickLocationButtons;
     Array<SpriteSimpleButton> brickSelGroup;
     private int brickSelGroupSelected = 0;
+    Array<Body> bodiesToRemove;
 
     public Box2dSimulatorScreen(final Box2dExGame game) {
         this.game = game;
@@ -108,6 +109,8 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         physicsBodies = new Array<>();
         gestureDetectables = new Array<>();
         gestureDetectablesTop = new Array<>();
+
+        bodiesToRemove = new Array<>();
 
 //        initPhysicsWorld(0, -9.81f);
         initPhysicsWorld(0, 0);
@@ -218,16 +221,15 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
                         Gdx.app.log(tag, "Box2d contact begin : " +
                                          BRICK.getValue(sgoFa.getIndex()).toString() + " : " +
                                          sgoFa.getIndexA());
-                        if (sgoFa.getIndexA() == 0) {
-                            renderables.removeValue(sgoFa, false);
-//                            world.destroyBody(fa.getBody());
+                        if (sgoFa.getIndexA() <= 0) {
+
                             new Thread(new Runnable() {
                                 @Override
                                 public void run() {
                                     Gdx.app.postRunnable(new Runnable() {
                                         @Override
                                         public void run() {
-                                            world.destroyBody(fa.getBody());
+                                            bodiesToRemove.add(fa.getBody());
                                         }
                                     });
                                 }
@@ -238,9 +240,19 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
                         Gdx.app.log(tag, "Box2d contact begin : " +
                                          BRICK.getValue(sgoFb.getIndex()).toString() + " : " +
                                          sgoFb.getIndexA());
-                        if (sgoFb.getIndexA() == 0) {
-                            renderables.removeValue(sgoFb, false);
-//                            world.destroyBody(fb.getBody());
+                        if (sgoFb.getIndexA() <= 0) {
+
+                            new Thread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Gdx.app.postRunnable(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            bodiesToRemove.add(fb.getBody());
+                                        }
+                                    });
+                                }
+                            }).start();
 
                         }
                     }
@@ -272,15 +284,84 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         }
     }
 
+    private void removeBrick(final SpriteGameObject sgoBrick) {
+        final Point2DFloat loc = sgoBrick.getLocation();
+        final float whParticle = sgoBrick.getWidth() / 4f;
+        final Color color =
+                new Color(sgoBrick.getColorR(), sgoBrick.getColorG(), sgoBrick.getColorB(),
+                          sgoBrick.getColorA());
+
+        renderables.removeValue(sgoBrick, false);
+
+        for (int x = 0; x < 4; x++) {
+            for (int y = 0; y < 4; y++) {
+                final SpriteGameObject sgoParticle = new SpriteGameObject(
+                        game.getAssetManager().get("img/rect_34x34.png", Texture.class),
+                        loc.getX() + whParticle * x,
+                        loc.getY() + whParticle * y).setSpriteBatch(game.getSpriteBatch());
+                sgoParticle.setColor(color);
+                sgoParticle.setSize(whParticle, whParticle);
+                sgoParticle.setSpriteOriginCenter();
+
+                sgoParticle.move(loc.getX() + whParticle * x + (float) Math.random()*2 - 1f,
+                                 loc.getY() + whParticle * y - 4 + (float) Math.random() * 5,
+                                 0.5f);
+                sgoParticle.rotate((float) Math.random() * 100 - 50, 0.5f);
+                sgoParticle.paintA(0.2f,0.5f);
+                renderables.add(sgoParticle);
+                sgoParticle.setEventListenerRotate(new VariationPerTime.EventListener() {
+                    @Override
+                    public void onUpdate(float v, float v1) {
+
+                    }
+
+                    @Override
+                    public void onStart(float v) {
+
+                    }
+
+                    @Override
+                    public void onFinish(float v, float v1) {
+                        renderables.removeValue(sgoParticle, false);
+                    }
+                });
+            }
+        }
+    }
+
+    private void checkToRemoveBrickBodies() {
+        for (Body body : bodiesToRemove) {
+//            renderables.removeValue(((SpriteGameObject) body.getUserData()), false);
+            final SpriteGameObject sgo = ((SpriteGameObject) body.getUserData());
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    Gdx.app.postRunnable(new Runnable() {
+                        @Override
+                        public void run() {
+                            removeBrick(sgo);
+                        }
+                    });
+                }
+            }).start();
+
+            //destroyBody reset userdata to null -> user data should be handled prior to destroy body
+            world.destroyBody(body);
+        }
+        bodiesToRemove.clear();
+    }
+
     private void doPhysicsStep(float deltaTime) {//https://github.com/libgdx/libgdx/wiki/Box2d
         // fixed time step
         // max frame time to avoid spiral of death (on slow devices)
         float frameTime = Math.min(deltaTime, 0.25f);
         accumulator += frameTime;
+        checkToRemoveBrickBodies();
         while (accumulator >= WORLD_TIME_STEP) {
             world.step(WORLD_TIME_STEP, WORLD_VELOCITY_ITERATIONS, WORLD_POSITION_ITERATIONS);
             accumulator -= WORLD_TIME_STEP;
         }
+//        checkToRemoveBrickBodies();
     }
 
     private void initGameObjects() {
@@ -291,7 +372,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         initBottomMenu();
         initDirTouchDots(30);
         initDirDots(36);
-        initBullets(10);
+        initBullets(50);
     }
 
     private void initBullets(int count) {
@@ -816,7 +897,7 @@ class Box2dSimulatorScreen implements Screen, GameTimer.EventListener {
         Vector2[] tri3Vertices = {vertices[0], vertices[2], vertices[3]};
         Vector2[] tri4Vertices = {vertices[0], vertices[1], vertices[2]};
 
-        final int count = 50;
+        final int count = 5;
 
         switch (brickKind) {
             case BOX:

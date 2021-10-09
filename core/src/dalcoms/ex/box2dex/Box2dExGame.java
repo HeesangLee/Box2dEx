@@ -100,6 +100,7 @@ public class Box2dExGame extends Game {
         assetManager.load("img/editDelete.png", Texture.class, para);
         assetManager.load("img/modeEdit.png", Texture.class, para);
         assetManager.load("img/modePlay.png", Texture.class, para);
+        assetManager.load("img/rect_34x34.png", Texture.class, para);
 
     }
 
